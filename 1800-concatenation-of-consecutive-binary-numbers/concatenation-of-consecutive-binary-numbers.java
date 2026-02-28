@@ -1,21 +1,12 @@
 class Solution {
     public int concatenatedBinary(int n) {
-        
-        long result = 0;
-        int bitLength = 0;
-        int MOD = 1000000007;
-        
-        for (int i = 1; i <= n; i++) {
-            
-            // If i is power of 2, increase bit length
-            if ((i & (i - 1)) == 0) {
-                bitLength++;
-            }
-            
-            // Shift left and add current number
-            result = ((result << bitLength) + i) % MOD;
+        int bi = 0;
+        long res = 0;
+        final long MOD = (long)(1e9 + 7);
+        for(int i=1;i<=n;i++){
+            if((i&(i-1)) == 0) bi++;
+            res = ((res << bi)+i)%MOD;
         }
-        
-        return (int) result;
+        return (int)res;
     }
 }
