@@ -1,25 +1,27 @@
 class Solution {
-    static final int MOD = 1000000007;
-
     public int numberOfStableArrays(int zero, int one, int limit) {
-        long[][][] dp = new long[zero + 1][one + 1][2];
+        final int mod = 1_000_000_007;
+        int L = limit + 1;
 
-        for (int i = 1; i <= Math.min(zero, limit); i++) dp[i][0][0] = 1;
-        for (int j = 1; j <= Math.min(one, limit); j++) dp[0][j][1] = 1;
+        int[][] dp0 = new int[zero + 1][one + 1]; // i 0s + j 1s ending with 0
+        int[][] dp1 = new int[zero + 1][one + 1]; // i 0s + j 1s ending with 1
 
-        for (int i = 1; i <= zero; i++) {
-            for (int j = 1; j <= one; j++) {
+        // Base cases: only zeros or only ones => only one string if len <= min(limit, zero/one)
+        for (int i = 1; i <= Math.min(zero, limit); ++i) dp0[i][0] = 1;
+        for (int j = 1; j <= Math.min(one, limit); ++j) dp1[0][j] = 1;
 
-                dp[i][j][0] = (dp[i - 1][j][0] + dp[i - 1][j][1]) % MOD;
-                if (i - limit - 1 >= 0)
-                    dp[i][j][0] = (dp[i][j][0] - dp[i - limit - 1][j][1] + MOD) % MOD;
+        // DP iterations
+        for (int i = 1; i <= zero; ++i) {
+            for (int j = 1; j <= one; ++j) {
+                dp0[i][j] = (dp0[i - 1][j] + dp1[i - 1][j] - (i >= L ? dp1[i - L][j] : 0)) % mod;
+                dp1[i][j] = (dp1[i][j - 1] + dp0[i][j - 1] - (j >= L ? dp0[i][j - L] : 0)) % mod;
 
-                dp[i][j][1] = (dp[i][j - 1][0] + dp[i][j - 1][1]) % MOD;
-                if (j - limit - 1 >= 0)
-                    dp[i][j][1] = (dp[i][j][1] - dp[i][j - limit - 1][0] + MOD) % MOD;
+                // Fix negatives
+                dp0[i][j] = (dp0[i][j] + mod) % mod;
+                dp1[i][j] = (dp1[i][j] + mod) % mod;
             }
         }
 
-        return (int)((dp[zero][one][0] + dp[zero][one][1]) % MOD);
+        return (dp0[zero][one] + dp1[zero][one]) % mod;
     }
 }
