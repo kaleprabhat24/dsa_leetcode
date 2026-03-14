@@ -1,17 +1,8 @@
 class Solution {
-    public void rotate(int[] nums, int k) {
-        int n = nums.length;
-        k %= n; // Handle cases where k > n
-        
-        // 1. Reverse the whole array
-        reverse(nums, 0, n - 1);
-        // 2. Reverse the first k elements
-        reverse(nums, 0, k - 1);
-        // 3. Reverse the rest
-        reverse(nums, k, n - 1);
-    }
 
-    private void reverse(int[] nums, int start, int end) {
+    // Function to reverse part of the array between given indices
+    void reverseArray(int[] nums, int start, int end) {
+        // Swap elements until start meets end
         while (start < end) {
             int temp = nums[start];
             nums[start] = nums[end];
@@ -19,5 +10,26 @@ class Solution {
             start++;
             end--;
         }
+    }
+
+    public void rotate(int[] nums, int k) {
+
+        // Get array length
+        int n = nums.length;
+
+        // Edge case: do nothing if k is 0
+        if (k == 0) return;
+
+        // Normalize k if greater than n
+        k = k % n;
+
+        // Step 1: reverse entire array
+        reverseArray(nums, 0, n - 1);
+
+        // Step 2: reverse first k elements
+        reverseArray(nums, 0, k - 1);
+
+        // Step 3: reverse remaining n-k elements
+        reverseArray(nums, k, n - 1);
     }
 }
