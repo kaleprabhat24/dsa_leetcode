@@ -1,118 +1,126 @@
+
 class Solution {
-    // Memoization table: dp[i][j] stores max walls for robots 0 to i
-    // j = 0: robot i pushed left, j = 1: robot i pushed right
-    private Integer[][] dp;
-  
-    // Array to store robot positions and push distances
-    // robotData[i][0] = position, robotData[i][1] = push distance
-    private int[][] robotData;
-  
-    // Sorted array of wall positions
-    private int[] walls;
-  
-    // Number of robots
-    private int robotCount;
 
+    public static final int INF = Integer.MAX_VALUE;
+    public static final int NEG_INF = Integer.MIN_VALUE;
+
+    record Robot(int position, int distance) {
+    }
+
+    /*
+     * Let dpLeft[i], dpRight[i] = count of walls broken using 0 to i-th robot and i-th robot fires in left or right direction.
+     * prepare leftWall[n], rightWall[n] to store the number of walls i-th robot can break in left or right direction.
+     * prepare common[n], where common[i] = common walls destroyed by i & i-1 robots when they shoot at each other.
+     *
+     * Base case: dpLeft[0] = leftWall[0], dpRight[0] = rightWall[0], common[0] = 0.
+     * Recurrence relation:
+     * => dpLeft[i] = leftWall[i] + Max(i-1 th shoots left, i-1 th shoots right)
+     *              = leftWall[i] + Max(dpLeft[i-1], dpRight[i-1] - common[i])
+     *
+     * => dpRight[i] = rightWall[i] + Max(i-1 th shoots left, i-1 th shoots right)
+     *               = rightWall[i] + Max(dpLeft[i-1], dpRight[i-1])
+     *
+     * We have int[] robots, int[] distance, int[] walls.
+     * Make Pair<robot -> distance> and sort it. Also sort walls.
+     *
+     * Now, how to prepare leftWall[n], rightWall[n], common[n] ------
+     * => for leftWall, robot shooting range is [max(robot[i-1] + 1, robot[i] - distance[i]), robot[i]]
+     *      start a window [left, right] and put move left right until its in robot shooting range.
+     * => similarly for rightWall, where robot shooting range is [robot[i], min(robot[i+1] - 1, robot[i] + distance[i])]
+     * => for common, we need to find the common walls broken by i & i-1 robots.
+     *      common walls in i-1 th right window and i th left window ... ignore if this window is invalid, i.e., left > right.
+     * */
     public int maxWalls(int[] robots, int[] distance, int[] walls) {
-        robotCount = robots.length;
-      
-        // Initialize robot data array with positions and distances
-        robotData = new int[robotCount][2];
-        for (int i = 0; i < robotCount; i++) {
-            robotData[i][0] = robots[i];
-            robotData[i][1] = distance[i];
+        int n = robots.length;
+        Robot[] robotRecords = new Robot[n];
+
+        for (int i = 0; i < n; i++) {
+            robotRecords[i] = new Robot(robots[i], distance[i]);
         }
-      
-        // Sort robots by position (left to right)
-        Arrays.sort(robotData, Comparator.comparingInt(a -> a[0]));
-      
-        // Sort walls for binary search
+
+        Arrays.sort(robotRecords, Comparator.comparingInt(o -> o.position));
         Arrays.sort(walls);
-        this.walls = walls;
-      
-        // Initialize memoization table
-        dp = new Integer[robotCount][2];
-      
-        // Start DFS from last robot, initially considering it pushed right
-        return dfs(robotCount - 1, 1);
+        return maxWalls(robotRecords, n, walls);
     }
 
-    /**
-     * Dynamic programming function to find max walls covered
-     * @param robotIndex - current robot index (0 to n-1)
-     * @param nextRobotDirection - direction of next robot (i+1)
-     *                            0: next robot pushed left
-     *                            1: next robot pushed right
-     * @return maximum walls that can be covered from robots 0 to robotIndex
-     */
-    private int dfs(int robotIndex, int nextRobotDirection) {
-        // Base case: no more robots to process
-        if (robotIndex < 0) {
-            return 0;
-        }
-      
-        // Return memoized result if available
-        if (dp[robotIndex][nextRobotDirection] != null) {
-            return dp[robotIndex][nextRobotDirection];
+    private int maxWalls(Robot[] robots, int n, int[] walls) {
+        int[] dpLeft = new int[n];
+        int[] dpRight = new int[n];
+        int[] leftWall = prepareLeftWall(robots, n, walls);
+        int[] rightWall = prepareRightWall(robots, n, walls);
+        int[] common = prepareCommon(robots, n, walls);
+
+        dpLeft[0] = leftWall[0];
+        dpRight[0] = rightWall[0];
+
+        for (int i = 1; i < n; i++) {
+            dpLeft[i] = leftWall[i] + Math.max(dpLeft[i - 1], dpRight[i - 1] - common[i]);
+            dpRight[i] = rightWall[i] + Math.max(dpLeft[i - 1], dpRight[i - 1]);
         }
 
-        // Option 1: Push current robot to the left
-        int leftBoundary = robotData[robotIndex][0] - robotData[robotIndex][1];
-      
-        // Ensure no overlap with previous robot (if exists)
-        if (robotIndex > 0) {
-            leftBoundary = Math.max(leftBoundary, robotData[robotIndex - 1][0] + 1);
-        }
-      
-        // Count walls in range [leftBoundary, currentPosition)
-        int leftIndex = lowerBound(walls, leftBoundary);
-        int rightIndex = lowerBound(walls, robotData[robotIndex][0] + 1);
-        int wallsIfPushedLeft = dfs(robotIndex - 1, 0) + (rightIndex - leftIndex);
-
-        // Option 2: Push current robot to the right
-        int rightBoundary = robotData[robotIndex][0] + robotData[robotIndex][1];
-      
-        // Ensure no overlap with next robot (if exists)
-        if (robotIndex + 1 < robotCount) {
-            if (nextRobotDirection == 0) {
-                // Next robot is pushed left, so its left boundary is a constraint
-                rightBoundary = Math.min(rightBoundary, 
-                    robotData[robotIndex + 1][0] - robotData[robotIndex + 1][1] - 1);
-            } else {
-                // Next robot is pushed right, so only its position matters
-                rightBoundary = Math.min(rightBoundary, 
-                    robotData[robotIndex + 1][0] - 1);
-            }
-        }
-      
-        // Count walls in range [currentPosition, rightBoundary]
-        leftIndex = lowerBound(walls, robotData[robotIndex][0]);
-        rightIndex = lowerBound(walls, rightBoundary + 1);
-        int wallsIfPushedRight = dfs(robotIndex - 1, 1) + (rightIndex - leftIndex);
-      
-        // Choose the option that covers more walls
-        int maxWalls = Math.max(wallsIfPushedLeft, wallsIfPushedRight);
-      
-        // Memoize and return result
-        dp[robotIndex][nextRobotDirection] = maxWalls;
-        return maxWalls;
+        return Math.max(dpLeft[n - 1], dpRight[n - 1]);
     }
 
-    /**
-     * Binary search to find the leftmost position >= target
-     * @param arr - sorted array to search
-     * @param target - target value to find
-     * @return index of first element >= target
-     */
-    private int lowerBound(int[] arr, int target) {
-        int index = Arrays.binarySearch(arr, target);
-      
-        // If exact match found, return its index
-        // If not found, binarySearch returns -(insertion point) - 1
-        // So we convert it back to insertion point
-        if (index < 0) {
-            return -index - 1;
+    private int[] prepareLeftWall(Robot[] robots, int n, int[] walls) {
+        int[] leftWall = new int[n];
+        int wallSize = walls.length;
+        int left = 0;
+        int right = -1;
+
+        for (int i = 0; i < n; i++) {
+            Robot robot = robots[i];
+            int prevRobotPosition = (i == 0) ? NEG_INF : robots[i - 1].position;
+            int shootStart = Math.max(prevRobotPosition + 1, robot.position - robot.distance);
+            int shootEnd = robot.position;
+
+            while (right + 1 < wallSize && walls[right + 1] <= shootEnd) ++right;
+            while (left < wallSize && walls[left] < shootStart) ++left;
+
+            if (left <= right) leftWall[i] = right - left + 1;
         }
-        return index;
+        return leftWall;
+    }
+
+    private int[] prepareRightWall(Robot[] robots, int n, int[] walls) {
+        int[] rightWall = new int[n];
+        int wallSize = walls.length;
+        int left = 0;
+        int right = -1;
+
+        for (int i = 0; i < n; i++) {
+            Robot robot = robots[i];
+            int nextRobotPosition = (i == n - 1) ? INF : robots[i + 1].position;
+            int shootStart = robot.position;
+            int shootEnd = Math.min(nextRobotPosition - 1, robot.position + robot.distance);
+
+            while (right + 1 < wallSize && walls[right + 1] <= shootEnd) ++right;
+            while (left < wallSize && walls[left] < shootStart) ++left;
+
+            if (left <= right) rightWall[i] = right - left + 1;
+        }
+        return rightWall;
+    }
+
+
+    private int[] prepareCommon(Robot[] robots, int n, int[] walls) {
+        int[] common = new int[n];
+        int wallSize = walls.length;
+        int left = 0;
+        int right = -1;
+
+        for (int i = 1; i < n; i++) {
+            Robot prev = robots[i - 1];
+            Robot curr = robots[i];
+            int shootStart = Math.max(prev.position + 1, curr.position - curr.distance);
+            int shootEnd = Math.min(curr.position - 1, prev.position + prev.distance);
+
+            if (shootStart > shootEnd) continue;
+
+            while (right + 1 < wallSize && walls[right + 1] <= shootEnd) ++right;
+            while (left < wallSize && walls[left] < shootStart) ++left;
+
+            if (left <= right) common[i] = right - left + 1;
+        }
+        return common;
     }
 }
