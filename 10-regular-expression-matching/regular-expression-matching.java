@@ -28,7 +28,8 @@ class Solution {
                     // one or more occurrence
                     if (p.charAt(j - 2) == '.' || 
                         p.charAt(j - 2) == s.charAt(i - 1)) {
-                        dp[i][j] |= dp[i - 1][j];
+                        dp[i][j] |= dp[i - 1][j];  
+                        
                     }
                 }
             }
